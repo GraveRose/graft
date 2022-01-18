@@ -132,6 +132,7 @@ which should show a bunch of TLS/HTTPS traffic and **not** SSH traffic.
 By default, there are no special requirements for SSH as this is a native connection type.
 
 ### ICMP (server)
+Using the program `ptunnel-ng` allows us to *piggyback* connections inside of ICMP payloads. Usually, most opertaing systems will send the alphabet and digits as the Echo payloads but with `ptunnel-ng`, the payloads actually contain the protocol we are tunneling.
 
 ### DNS (server)
 ToDo
@@ -207,6 +208,6 @@ LF="/tmp/graft.log"
 ```
 Where you want to store your logs from `graft`.
 
-### Requirements
-You will need the following binaries installed and will be checked for on startup: `openssl`, `hping3`, `ssh`, `ptunnel-ng`
+### Client Requirements
+The following binaries are required to be installed and will be checked for on startup: `openssl`, `hping3`, `ssh`, `ptunnel-ng`
 In addition, tools such as `awk` and `grep` are required but not checked for.
