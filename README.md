@@ -277,7 +277,7 @@ Now that you have both the server and client machines ready, you can run `graft`
 Once you have filled in all the variables inside the script itself, `graft` should run everything automatically since it's intended to run headless as a `cron` job. If you run it manually, it will still work and present information to you via STDOUT.
 
 ```sh
-
+[Client]
 
  _____ _____ _____ _____ _____
 |   __| __  |  _  |   __|_   _|
@@ -337,5 +337,43 @@ Welcome to Ubuntu 20.04.3 LTS (GNU/Linux 5.4.0-94-generic x86_64)
 
 ### Process Flow
 `graft` is designed to try the four types of tunnel creation in the order set in the `PREF` array but first, `graft` will check to see if the protocol is allowed to egress the network. This is done in the `graft-main()` function. Both HTTP and SSH use the `hping3` tool to send one SYN packet to the server ($SRV) on each respective port ($HPORT and $SSHPORT) to determine if a SYN/ACK is received. If not (the return value [$?] isn't "0"), then that protocol will **not** be used to create a tunnel. If the return value **is** "0" then `graft` will make a connection to the server on the available protocol. In doing so, it will check the SHA-1 hash of the HTTPS/TLS certificate and/or the signature of the SSH server. These will be compared to the values stored in the "SHA" and "SIG" variables respectively. If they don't match, then the protocol is excluded from use as there is likely a Man-in-the-Middle happening. ICMP is tested with a single `ping` to the server.
+
 Once a protocol has been verified for egress, the variable (HTTPC, SSHC, ICMPC and DNSC) will bet set to "0" indicating that they can be used. The `graft-` functions are then called in the order listed in the PREF array and if the "xxxxC" variable is not set to "0", that protocol is skipped and the next one is attempted.
+
 Once the connection is made to the server, `graft` tells SSH to use Reverse Forwarding (`ssh -R...`) to open a socket on the server which, when SSH'd into, will lead back to the client over the same transport protocol used to egress the network.
+
+1. `graft` reads the variables to determine the server to connect to and all the validation information it needs.
+2. It then uses `hping3` to see if HTTPS is allowed outbound to the destination server.
+3. Next, it does the same for SSH.
+4. The default `ping` command is used to test of ICMP.
+5. For both HTTPS and SSH, `graft` will verify the certifcate/fingerprint to ensure it has reached the proper server without interception.
+6. It will then attempt to create tunnels to the server through the protocols listed in order in the PREF array.
+7. Once connected, it will open a socket on the server on the port specified in the user-defined variables.
+
+### Reverse Shell
+Once the initial connection has been made from the client to the server, log into the server and SSH to the localhost (server) on the port configured previously:
+```sh
+# Check to see what ports are listening and look for your custom port
+root@server:~/.ssh# netstat -peanut | grep -i list
+# This line below
+tcp        0      0 127.0.0.1:1234          0.0.0.0:*               LISTEN      0          7534636    1881460/sshd: root@
+tcp        0      0 0.0.0.0:443             0.0.0.0:*               LISTEN      0          23241      742/haproxy
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      0          23180      729/sshd: /usr/sbin
+tcp6       0      0 ::1:80                  :::*                    LISTEN      0          23259      747/apache2
+# This line below
+tcp6       0      0 ::1:1234                :::*                    LISTEN      0          7534635    1881460/sshd: root@
+tcp6       0      0 :::22                   :::*                    LISTEN      0          23191      729/sshd: /usr/sbin
+```
+To access the client (planted) device from the server, run:
+```sh
+# "user" is the user account on the client (planted) device
+ssh user@localhost -p 1234
+```
+
+---
+
+## Bugs
+Yeah. This is still in development. Bugs and missing features galore.
+
+## Contact
+Feel free to reach out to me on Twitter [https://twitter.com/grave_rose](@Grave_Rose)
