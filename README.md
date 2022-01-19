@@ -132,7 +132,29 @@ which should show a bunch of TLS/HTTPS traffic and **not** SSH traffic.
 By default, there are no special requirements for SSH as this is a native connection type.
 
 ### ICMP (server)
-Using the program `ptunnel-ng` allows us to *piggyback* connections inside of ICMP payloads. Usually, most opertaing systems will send the alphabet and digits as the Echo payloads but with `ptunnel-ng`, the payloads actually contain the protocol we are tunneling.
+Using the program `ptunnel-ng` allows us to *piggyback* connections inside of ICMP payloads. Usually, most opertaing systems will send the alphabet and digits as the Echo payloads but with `ptunnel-ng`, the payloads actually contain the protocol we are tunneling. To install `ptunnel-ng`, follow these steps:
+
+1. Create a directory to download it to:
+```sh
+mkdir -p ~/Downloads/Installers/ptunnel-ng
+cd ~/Downloads/Installers/ptunnel-ng
+```
+2. Clone the repository:
+```sh
+git clone https://github.com/lnslbrty/ptunnel-ng.git
+```
+3. Make and install the software:
+```sh
+./autogen.sh && make install
+```
+4. Start `ptunnel-ng` and point it at your SSH port running on your server:
+```sh
+# If SSH is bound to a different port, put it in here.
+# This should match the SSHPORT variable in the Client Configuration section below.
+ptunnel-ng -R22
+```
+
+At this point your server is ready to receive SSH connections over ICMP.
 
 ### DNS (server)
 ToDo
@@ -147,12 +169,12 @@ ToDo
 ```sh
 PREF=(http ssh icmp dns)
 ```
-This is the order in which you'd prefer `graft` to attempt to tunnel.
+This is the order in which you'd prefer `graft` to attempt to tunnel. Feel free to move these around but the names mustn't change and must be lower-case.
 
 ```sh
 SRV=x.x.x.x
 ```
-This is the name of your server on the outside. If you are using a proxy such as `socat`, put that in here.
+This is the FQDN or IP of your server on the outside. If you are using a proxy such as `socat`, put that in here.
 
 ```sh
 USER=jdoe
@@ -211,3 +233,107 @@ Where you want to store your logs from `graft`.
 ### Client Requirements
 The following binaries are required to be installed and will be checked for on startup: `openssl`, `hping3`, `ssh`, `ptunnel-ng`
 In addition, tools such as `awk` and `grep` are required but not checked for.
+
+### SSH Authentication
+To make sure the client device (the one running `graft`) is able to automatically log in to the server, you **must** create an RSA ID for SSH to use where the ID has **no** passphrase. 
+
+1. Create the key:
+```sh
+ssh-keygen
+# When prompted, just press [Enter] for the passphrase
+```
+2. Copy the SSH ID to the server (method 1):
+```sh
+ssh-copy-id USER@YOURSERVER -p SSHPORT
+```
+3. Copy the SSH ID to the server (method 2):
+```sh
+# On the client
+cat ~/.ssh/rsa_id.pub
+# Copy this output into your copy buffer (Ctrl+Shft+c)
+
+# On the server
+vim ~/.ssh/authorized_keys
+# Paste the text from your copy buffer
+```
+
+---
+
+## Running
+Now that you have both the server and client machines ready, you can run `graft` to create your SSH connections. I would suggest running it manually to test it out first to make sure everything works properly before setting it up in a headless `cron` job.
+
+### Pre-Flight Checklist
+[ ] HTTPS Server configured with `haproxy`
+[ ] TLS Certificate SHA-1 copied to `graft`
+[ ] SSH Server configured
+[ ] SSH fingerprint copied to `graft`
+[ ] ICMP Server configured with `ptunnel-ng`
+[ ] SSH client configured to use `haproxy` in "~/.ssh/config"
+[ ] SSH passphrase-less ID created on client
+[ ] SSH passphrase-less ID stored on server
+[ ] Verified SSH connection from client to server requires no user-interaction for authentication
+
+### Take-Off
+Once you have filled in all the variables inside the script itself, `graft` should run everything automatically since it's intended to run headless as a `cron` job. If you run it manually, it will still work and present information to you via STDOUT.
+
+```sh
+
+
+ _____ _____ _____ _____ _____
+|   __| __  |  _  |   __|_   _|
+|  |  |    -|     |   __| | |
+|_____|__|__|__|__|__|    |_|
+
+
+       GRAFT: 0.0.1
+________________________________
+
+
+Performing Requirements Checking
+--------------------------------
+Checking for openssl .......... [OK]
+Checking for hping3 ........... [OK]
+Checking for ssh .............. [OK]
+Checking for ptunnel-ng ....... [OK]
+Stopping all "ptunnel-ng" instances ... ptunnel-ng: no process found
+Done
+
+Testing Connections
+-------------------
+HTTPS ... [OK]
+Verifying x.x.x.x HTTPS certificate ... [OK]
+SSH ..... [OK]
+Verifying SSH fingerprint of x.x.x.x ... [OK]
+[OK]
+ICMP .... [OK]
+
+Entering HTTP Mode
+------------------
+Checking for proper .ssh/config for x.x.x.x ... grep: /root/.ssh/config: No such file or directory
+Not found
+Please add the following to your ~/.ssh/config file:
+
+Host x.x.x.x
+    ProxyCommand openssl s_client -connect x.x.x.x:443 -quiet 2>/dev/null
+
+Exiting...
+
+Entering ICMP Mode
+------------------
+Creating ICMP reverse tunnel over ICMP
+[inf]: Starting ptunnel-ng 1.42.
+[inf]: (c) 2004-2011 Daniel Stoedle, <daniels@cs.uit.no>
+[inf]: (c) 2017-2019 Toni Uhlig,     <matzeton@googlemail.com>
+[inf]: Security features by Sebastien Raveau, <sebastien.raveau@epita.fr>
+[inf]: Relaying packets from incoming TCP streams.
+[inf]: Incoming connection.
+[evt]: No running proxy thread - starting it.
+[inf]: Ping proxy is listening in privileged mode.
+[inf]: Dropping privileges now.
+Enter passphrase for key '/root/.ssh/id_rsa':
+Welcome to Ubuntu 20.04.3 LTS (GNU/Linux 5.4.0-94-generic x86_64)
+--SNIP--
+```
+
+### Process Flow
+`graft` is designed to try the four types of tunnel creation in the order set in the `PREF` array but first, `graft` will check to see if the protocol is allowed to egress the network. This is done in the `graft-main()` function. Both HTTP and SSH use the `hping3` tool to send one SYN packet to the server ($SRV) on each respective port ($HPORT and $SSHPORT) to determine if a SYN/ACK is received. If not (the return value [$?] isn't "0"), then that protocol will **not** be used to create a tunnel. If the return value **is** "0" then `graft` will make a connection to the server on the available protocol. In doing so, it will check the SHA-1 hash of the HTTPS/TLS certificate and/or the signature of the SSH server. These will be compared to the values stored in the "SHA" and "SIG" variables respectively. If they don't match, then the protocol is excluded from use as there is likely a Man-in-the-Middle happening.
