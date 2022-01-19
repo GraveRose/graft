@@ -376,4 +376,4 @@ ssh user@localhost -p 1234
 Yeah. This is still in development. Bugs and missing features galore.
 
 ## Contact
-Feel free to reach out to me on Twitter [https://twitter.com/grave_rose](@Grave_Rose)
+Feel free to reach out to me on Twitter [@Grave_Rose](https://twitter.com/grave_rose)
