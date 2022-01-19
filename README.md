@@ -263,15 +263,15 @@ vim ~/.ssh/authorized_keys
 Now that you have both the server and client machines ready, you can run `graft` to create your SSH connections. I would suggest running it manually to test it out first to make sure everything works properly before setting it up in a headless `cron` job.
 
 ### Pre-Flight Checklist
-[ ] HTTPS Server configured with `haproxy`
-[ ] TLS Certificate SHA-1 copied to `graft`
-[ ] SSH Server configured
-[ ] SSH fingerprint copied to `graft`
-[ ] ICMP Server configured with `ptunnel-ng`
-[ ] SSH client configured to use `haproxy` in "~/.ssh/config"
-[ ] SSH passphrase-less ID created on client
-[ ] SSH passphrase-less ID stored on server
-[ ] Verified SSH connection from client to server requires no user-interaction for authentication
+- [ ] HTTPS Server configured with `haproxy`
+- [ ] TLS Certificate SHA-1 copied to `graft`
+- [ ] SSH Server configured
+- [ ] SSH fingerprint copied to `graft`
+- [ ] ICMP Server configured with `ptunnel-ng`
+- [ ] SSH client configured to use `haproxy` in "~/.ssh/config"
+- [ ] SSH passphrase-less ID created on client
+- [ ] SSH passphrase-less ID stored on server
+- [ ] Verified SSH connection from client to server requires no user-interaction for authentication
 
 ### Take-Off
 Once you have filled in all the variables inside the script itself, `graft` should run everything automatically since it's intended to run headless as a `cron` job. If you run it manually, it will still work and present information to you via STDOUT.
